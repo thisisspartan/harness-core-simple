@@ -238,14 +238,13 @@ class GateTests(Base):
             self.assertEqual(json.loads(r.stdout)["decision"], "block")
 
 
-    def test_commit_on_clean_tree_reruns_gate(self):
-        self.verify("exit 0")
+    def test_commit_made_by_the_agent_before_stop_is_still_verified(self):
+        # the agent edits AND commits before the first gate(): the tree is clean again,
+        # only HEAD moved — a tree_id that ignores HEAD would skip the check entirely
+        self.verify("exit 1")
         self.start()
         self.write("a.txt", "2")
-        self.assertIsNone(self.gate())  # records PASS on dirty tree
-        sh(self.root, "git", "add", "a.txt")
-        sh(self.root, "git", "commit", "-qm", "second")  # clean tree again, new HEAD
-        self.verify("exit 1")
+        sh(self.root, "git", "commit", "-qam", "agent-commit")
         self.assertEqual(self.gate()["decision"], "block")
 
     def test_single_huge_line_output_is_char_capped(self):
@@ -256,7 +255,9 @@ class GateTests(Base):
         self.assertLess(len(r["reason"]), 4500)
         self.assertIn("[truncated]", r["reason"])
 
-    def test_subdir_cwd_tracks_changes_accurately(self):
+    def test_subdir_project_sees_every_edit_not_only_the_first(self):
+        # without `diff --relative`, paths come out repo-rooted and lstat sees "gone" for
+        # EVERY edit — both fingerprints match and the second edit is silently skipped
         self.write("sub/x.txt", "1")
         sh(self.root, "git", "add", "sub/x.txt")
         sh(self.root, "git", "commit", "-qm", "sub")
@@ -267,17 +268,44 @@ class GateTests(Base):
             f.write("#!/usr/bin/env bash\necho x >> '%s'\nexit 0\n" % self.counter)
         os.chmod(v, 0o755)
         env = dict(os.environ, CLAUDE_PROJECT_DIR=sub)
-        subprocess.run([sys.executable, START], input='{"session_id":"sd"}', capture_output=True, text=True, env=env, check=True)
+        run = lambda s: subprocess.run([sys.executable, s], input='{"session_id":"sd"}',
+                                       capture_output=True, text=True, env=env, check=True)
+        run(START)
         self.write("sub/x.txt", "2")
-        subprocess.run([sys.executable, GATE], input='{"session_id":"sd"}', capture_output=True, text=True, env=env, check=True)
-        subprocess.run([sys.executable, GATE], input='{"session_id":"sd"}', capture_output=True, text=True, env=env, check=True)
-        self.assertEqual(self.runs(), 1)
+        run(GATE)
+        self.write("sub/x.txt", "3333")
+        run(GATE)
+        self.assertEqual(self.runs(), 2)
 
     def test_bad_timeout_bounds_are_clamped(self):
         self.verify("sleep 0.1; exit 0")
         self.start()
         self.write("a.txt", "2")
         self.assertIsNone(self.gate(env={"HARNESS_VERIFY_TIMEOUT": "0"}))
+
+    def test_broken_symlink_retarget_is_seen(self):
+        # os.stat on a dangling symlink raises -> fingerprint "gone" for BOTH targets;
+        # os.lstat fingerprints the link itself (size = target-name length differs here)
+        self.verify("exit 0")
+        self.start()
+        os.symlink("t.txt", os.path.join(self.root, "link"))  # target never created
+        self.gate()
+        self.assertEqual(self.runs(), 1)
+        os.remove(os.path.join(self.root, "link"))
+        os.symlink("target2.txt", os.path.join(self.root, "link"))
+        self.gate()
+        self.assertEqual(self.runs(), 2)
+
+    def test_fails_map_is_pruned_to_50(self):
+        sys.path.insert(0, os.path.join(ROOT, "scripts"))
+        import lib
+        st = {"base": {}, "fails": {"s%d" % i: 1 for i in range(60)}}
+        lib.save_state(self.root, st)
+        with open(os.path.join(self.root, ".harness/state/gate.json")) as f:
+            saved = json.load(f)
+        self.assertEqual(len(saved["fails"]), 50)
+        self.assertIn("s59", saved["fails"])
+        self.assertNotIn("s0", saved["fails"])
 
 
 class StartTests(Base):
