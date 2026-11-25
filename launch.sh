@@ -4,8 +4,11 @@
 # merge-оверрайдов, trap-файлов и role-промпта — только бинарь, --plugin-dir и --settings.
 # Запускать ВНУТРИ проекта (cd в проект, потом ~/.../launch.sh [claude аргументы]).
 # Переопределения: CLAUDE_BIN=<бинарь>, SETTINGS=<settings.json>, HARNESS_MODEL/URL через свой settings.
+# Локальные секреты/пути — в launch.env (не в git, см. launch.env.example): переменные из файла
+# подхватываются только если не заданы в окружении, т.е. приоритет: env > launch.env > дефолт.
 set -u
 DIR="$(cd "$(dirname "$0")" && pwd)"
+[ -f "$DIR/launch.env" ] && . "$DIR/launch.env"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 SETTINGS="${SETTINGS:-$DIR/settings.json}"
 command -v "$CLAUDE_BIN" >/dev/null 2>&1 || [ -x "$CLAUDE_BIN" ] || { echo "launch: no binary $CLAUDE_BIN (set CLAUDE_BIN=...)" >&2; exit 1; }
