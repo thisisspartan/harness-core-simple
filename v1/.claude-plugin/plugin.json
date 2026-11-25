@@ -1,0 +1,6 @@
+{
+  "name": "harness-core",
+  "version": "1.0.0",
+  "description": "Minimal Claude Code harness: task handoff at session start and a verify gate at Stop.",
+  "author": { "name": "operator" }
+}

@@ -1,0 +1,22 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8080",
+    "ANTHROPIC_AUTH_TOKEN": "local-dummy",
+    "ANTHROPIC_API_KEY": "",
+    "ANTHROPIC_MODEL": "your-model-id",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "your-model-id",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "your-model-id",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "your-model-id",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "your-model-id",
+    "CLAUDE_CODE_AUTO_COMPACT_WINDOW": "131000",
+    "DISABLE_AUTOUPDATER": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_CODE_ENABLE_AWAY_SUMMARY": "0",
+    "DISABLE_GROWTHBOOK": "1"
+  },
+  "permissions": {
+    "deny": [
+      "Bash(pkill *)"
+    ]
+  }
+}

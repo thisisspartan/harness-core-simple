@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Copy to .harness/verify and adapt. Exit 0 = pass. Keep it fast: it runs on every Stop that changed files.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+python3 -m unittest discover -s tests
