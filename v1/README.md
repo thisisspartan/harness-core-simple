@@ -1,9 +1,10 @@
 # harness-core 1.0
 
-Minimal harness for Claude Code. Two hooks, one subagent, one skill. Everything else is native Claude Code.
+Minimal harness for Claude Code. Three hooks, one subagent, one skill. Everything else is native Claude Code.
 
 - **SessionStart** (startup, resume, clear, compact, fork): prints the kernel, `.harness/task.md` and live state as context.
 - **Stop**: runs `.harness/verify` (a script you own; exit 0 = pass). While it fails, the stop is blocked, at most 3 times in a row.
+- **PreToolUse** (`loop_guard.py`): blocks a runaway agent — 8 identical tool calls or 3 alternating A-B cycles in a row (per session and agent).
 - **digest** subagent: runs noisy commands in an isolated context.
 - **/harness-core:harness-init**: creates `.harness/verify`, the task file and `.gitignore` entries.
 

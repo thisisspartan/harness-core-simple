@@ -354,5 +354,71 @@ class StartTests(Base):
             self.assertNotIn("branch=no-git", out)
 
 
+GUARD = os.path.join(ROOT, "scripts", "loop_guard.py")
+
+
+class LoopGuardTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def call(self, payload, sess="s1", agent="main", raw=None):
+        payload = dict(payload, session_id=sess, agent_id=agent)
+        stdin = raw if raw is not None else json.dumps(payload)
+        env = dict(os.environ, TMPDIR=self.tmp.name)
+        r = subprocess.run([sys.executable, GUARD], input=stdin,
+                           capture_output=True, text=True, env=env)
+        return r.returncode, r.stderr
+
+    def bash(self, cmd, **kw):
+        return self.call({"tool_name": "Bash", "tool_input": {"command": cmd}}, **kw)
+
+    def edit(self, path, **kw):
+        return self.call({"tool_name": "Edit", "tool_input": {"file_path": path}}, **kw)
+
+    def test_same_call_blocked_at_8_and_history_kept(self):
+        for _ in range(7):
+            self.assertEqual(0, self.bash("ls")[0])
+        code, err = self.bash("ls")
+        self.assertEqual(2, code)
+        self.assertIn("Loop guard blocked", err)
+        # history not clobbered by the blocked call: repeats stay blocked
+        self.assertEqual(2, self.bash("ls")[0])
+
+    def test_different_command_resets(self):
+        for _ in range(7):
+            self.assertEqual(0, self.bash("ls")[0])
+        self.assertEqual(0, self.bash("pwd")[0])
+        self.assertEqual(0, self.bash("ls")[0])
+
+    def test_ab_cycle_blocked_at_6(self):
+        for seq in "ABABA":
+            self.assertEqual(0, self.bash("cmd" + seq)[0])
+        code, err = self.bash("cmdB")
+        self.assertEqual(2, code)
+        self.assertIn("alternating", err)
+        self.assertEqual(2, self.bash("cmdB")[0])
+
+    def test_tdd_pattern_allowed(self):
+        for i in range(1, 4):
+            self.assertEqual(0, self.bash("python3 -m unittest")[0])
+            self.assertEqual(0, self.edit(f"fix{i}.py")[0])
+
+    def test_agents_isolated_per_session(self):
+        for _ in range(7):
+            self.assertEqual(0, self.bash("ls", agent="main")[0])
+        # sub1's different history does not reset main's
+        self.assertEqual(0, self.bash("ls", agent="sub1")[0])
+        self.assertEqual(2, self.bash("ls", agent="main")[0])
+
+    def test_garbage_stdin_fail_open(self):
+        env = dict(os.environ, TMPDIR=self.tmp.name, LC_ALL="C")
+        r = subprocess.run([sys.executable, GUARD], input="nope",
+                           capture_output=True, text=True, env=env)
+        self.assertEqual(0, r.returncode)
+
+
 if __name__ == "__main__":
     unittest.main()
