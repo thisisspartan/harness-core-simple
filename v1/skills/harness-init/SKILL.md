@@ -12,5 +12,5 @@ Set up the harness for this repository. Facts first; do not invent commands.
 4. Create `.harness/task.md` from `${CLAUDE_SKILL_DIR}/../../templates/task.md` only if it does not exist.
 5. Append to `.gitignore` if missing: `.harness/state/` and `.harness/out/`.
 6. Do not touch `.claude/settings.json`. If the repo has no CLAUDE.md, suggest the built-in `/init`; do not write a competing one.
-7. Ensure effort default: merge `"effortLevel": "medium"` into `.claude/settings.local.json` (create it if missing; keep every existing key, only add the key when absent — never overwrite a value the operator already set). Do not add it to `.claude/settings.json`.
+7. Ensure defaults: merge `"effortLevel": "medium"`, `"outputStyle": "Concise"` and `"language": "Russian"` into `.claude/settings.local.json` (create it if missing; keep every existing key, only add a key when absent — never overwrite a value the operator already set). Do not add them to `.claude/settings.json`.
 8. Report what was created. Re-running only reports differences and never overwrites an existing `.harness/verify`.
